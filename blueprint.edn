@@ -1,0 +1,11 @@
+{:itonami.blueprint/id "cloud-itonami-5610"
+ :itonami.blueprint/name "Community Food Service Operations"
+ :itonami.blueprint/isic-rev5 "5610"
+ :itonami.blueprint/domain :hospitality/food-service
+ :itonami.blueprint/license "AGPL-3.0-or-later"
+ :itonami.blueprint/social-impact [:food-safety :public-health :local-economy]
+ :itonami.blueprint/governor :food-service-governor
+ :itonami.blueprint/robotics true
+ :itonami.blueprint/required-technologies [:robotics :identity :forms :dmn :bpmn :audit-ledger]
+ :itonami.blueprint/optional-technologies [:optimization]
+ :itonami.blueprint/status :public-oss}
