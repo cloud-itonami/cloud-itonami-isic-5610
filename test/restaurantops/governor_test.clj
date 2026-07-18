@@ -119,6 +119,74 @@
       (is (false? (:high-stakes? verdict)))
       (is (false? (:escalate? verdict))))))
 
+;; ----------------------------- cross-actor handoff receipt (jsic-4721 -> isic-5610) -----------------------------
+;;
+;; Fourth HARD check, additive -- superproject ADR-2800000500. Mirrors the
+;; jsic-4721 side's own `outbound-shipment-handoff-incompatible-with-
+;; commodity-class-holds` test shape, but this location's own storage
+;; units, independent implementation.
+
+(def ^:private frozen-fish-handoff
+  "A handoff record an upstream cold-chain 3PL (e.g. cloud-itonami-
+  jsic-4721) issues for a deep-frozen delivery."
+  {:handoff/id "h-1"
+   :handoff/source-actor "cloud-itonami-jsic-4721"
+   :handoff/batch-id "lot-001"
+   :handoff/product-type-id :coldchain/f4-deep-frozen
+   :handoff/cold-chain-temp-min-c -22.0
+   :handoff/cold-chain-temp-max-c -18.0
+   :handoff/quantity-kg 80.0
+   :handoff/dispatched-at-iso "2026-07-18T00:00:00Z"})
+
+(deftest handoff-incompatible-with-storage-unit-holds
+  (testing "a deep-frozen handoff accepted into a walk-in refrigerator holds (temperature-tier mismatch)"
+    (let [s (store/mem-store {"location-1" location-1})
+          proposal (assoc (clean-proposal :log-supply-receipt "location-1")
+                          :value {:handoff frozen-fish-handoff :storage-unit-id :walk-in-refrigerator})
+          verdict (gov/check {} nil proposal s)]
+      (is (true? (:hard? verdict)))
+      (is (some #{:handoff-cold-chain-window-incompatible-with-storage-unit} (map :rule (:violations verdict)))))))
+
+(deftest handoff-compatible-with-storage-unit-passes
+  (testing "a deep-frozen handoff accepted into the freezer passes"
+    (let [s (store/mem-store {"location-1" location-1})
+          proposal (assoc (clean-proposal :log-supply-receipt "location-1")
+                          :value {:handoff frozen-fish-handoff :storage-unit-id :freezer})
+          verdict (gov/check {} nil proposal s)]
+      (is (false? (:hard? verdict))))))
+
+(deftest supply-receipt-without-handoff-passes
+  (testing "a :log-supply-receipt proposal without a :handoff record is not held on this basis (backward compatible)"
+    (let [s (store/mem-store {"location-1" location-1})
+          verdict (gov/check {} nil (clean-proposal :log-supply-receipt "location-1") s)]
+      (is (false? (:hard? verdict))))))
+
+(deftest handoff-without-storage-unit-id-does-not-hold-on-this-basis
+  (testing "a :handoff present but no :storage-unit-id named is not held on this basis"
+    (let [s (store/mem-store {"location-1" location-1})
+          proposal (assoc (clean-proposal :log-supply-receipt "location-1")
+                          :value {:handoff frozen-fish-handoff})
+          verdict (gov/check {} nil proposal s)]
+      (is (empty? (filter #(= :handoff-cold-chain-window-incompatible-with-storage-unit (:rule %))
+                          (:violations verdict)))))))
+
+(deftest storage-unit-id-without-handoff-does-not-hold-on-this-basis
+  (testing "a :storage-unit-id present but no :handoff is not held on this basis"
+    (let [s (store/mem-store {"location-1" location-1})
+          proposal (assoc (clean-proposal :log-supply-receipt "location-1")
+                          :value {:storage-unit-id :freezer})
+          verdict (gov/check {} nil proposal s)]
+      (is (empty? (filter #(= :handoff-cold-chain-window-incompatible-with-storage-unit (:rule %))
+                          (:violations verdict)))))))
+
+(deftest handoff-cross-check-applies-to-any-op-not-only-log-supply-receipt
+  (testing "the cross-check is wired unconditionally (like the other three HARD checks), so it also applies e.g. to :log-service-record carrying the same optional fields"
+    (let [s (store/mem-store {"location-1" location-1})
+          proposal (assoc (clean-proposal :log-service-record "location-1")
+                          :value {:handoff frozen-fish-handoff :storage-unit-id :walk-in-refrigerator})
+          verdict (gov/check {} nil proposal s)]
+      (is (true? (:hard? verdict))))))
+
 ;; ----------------------------- self-trip regression -----------------------------
 ;;
 ;; A known bug class in this actor fleet: the governor's own
@@ -135,7 +203,7 @@
   (testing "the default mock advisor's own proposals for every allowed op never trip the governor's scope-exclusion check"
     (let [s (store/mem-store {"location-1" location-1})]
       (doseq [op [:log-service-record :schedule-staffing-operation :coordinate-supply-order
-                  :flag-food-safety-concern]]
+                  :log-supply-receipt :flag-food-safety-concern]]
         (let [proposal (adv/infer nil {:op op :location-id "location-1" :patch {}})
               verdict (gov/check {:location-id "location-1"} nil proposal s)]
           (is (empty? (filter #(= :scope-excluded (:rule %)) (:violations verdict)))

@@ -62,8 +62,8 @@ way.
 
 - **Closed proposal-op allowlist**: `log-service-record`,
   `schedule-staffing-operation`, `coordinate-supply-order`,
-  `flag-food-safety-concern` (all `:effect :propose`).
-- **Three HARD governor checks** (permanent, un-overridable):
+  `log-supply-receipt`, `flag-food-safety-concern` (all `:effect :propose`).
+- **Four HARD governor checks** (permanent, un-overridable):
   1. **Location unverified** — the target location's business
      registration + health permit must exist AND be independently
      registered/verified in the store.
@@ -73,6 +73,16 @@ way.
      kitchen-equipment actuation, and food-safety-authority enforcement
      (health-department clearance, inspection sign-off, license/permit
      actions) are permanently blocked.
+  4. **Cross-actor handoff cold-chain incompatibility** (superproject
+     ADR-2800000500) — when a proposal's `:value` carries both a
+     `:handoff` record (the wire shape an upstream cold-chain 3PL such as
+     cloud-itonami-jsic-4721 populates on its own outbound dispatch — see
+     that repo's ADR-2607177600) and a `:storage-unit-id` naming which of
+     this location's own cold-storage units (`walk-in-refrigerator`/
+     `freezer`) the delivery is going into, this actor independently
+     verifies the handoff's declared temperature window overlaps that
+     unit's own operating band. No shared code with jsic-4721, just the
+     same field names; optional on both fields.
 - **Two ESCALATE (SOFT) gates**, either forces human sign-off:
   - `:flag-food-safety-concern` — ALWAYS escalates, regardless of
     confidence or phase. A "flag a concern" op is never auto-commit
@@ -84,11 +94,12 @@ way.
     sibling actor.)
 - **Staged rollout** (Phase 0→3):
   - Phase 0: read-only
-  - Phase 1: service-record logging only (approval-gated)
+  - Phase 1: service-record + supply-receipt logging only (approval-gated)
   - Phase 2: + staffing-operation scheduling, supply-order proposals
     (approval-gated)
   - Phase 3: auto-commits clean, high-confidence, low-cost proposals
-    (food-safety concerns and high-cost supply orders always escalate)
+    (food-safety concerns, high-cost supply orders, and a HARD cold-chain
+    handoff mismatch always escalate/hold)
 - **Append-only audit ledger** — every decision is an immutable log entry.
 - **langgraph-clj StateGraph** — one request = one supervised run;
   human-in-the-loop via `interrupt-before`.

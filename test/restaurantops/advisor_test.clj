@@ -36,6 +36,17 @@
       (is (= :propose (:effect p)))
       (is (string? (:summary p))))))
 
+(deftest propose-supply-receipt-shape
+  (testing "supply-receipt proposal has correct shape"
+    (let [p (adv/infer db {:op :log-supply-receipt
+                           :location-id "location-1"
+                           :patch {:storage-unit-id :freezer}})]
+      (is (= :log-supply-receipt (:op p)))
+      (is (= "location-1" (:location-id p)))
+      (is (= :propose (:effect p)))
+      (is (map? (:value p)))
+      (is (contains? (:value p) :location-id)))))
+
 (deftest propose-food-safety-concern-shape
   (testing "food-safety-concern proposal always escalates"
     (let [p (adv/infer db {:op :flag-food-safety-concern
@@ -48,7 +59,7 @@
 (deftest all-proposals-effect-is-always-propose
   (testing "every proposal type has :effect :propose, never direct actuation"
     (doseq [op [:log-service-record :schedule-staffing-operation :coordinate-supply-order
-                :flag-food-safety-concern]]
+                :log-supply-receipt :flag-food-safety-concern]]
       (let [p (adv/infer db {:op op :location-id "location-1" :patch {}})]
         (is (= :propose (:effect p))
             (str "op " op " must have :effect :propose"))))))
@@ -56,7 +67,7 @@
 (deftest rationale-string-is-present
   (testing "every proposal has a rationale explaining the advisor's thinking"
     (doseq [op [:log-service-record :schedule-staffing-operation :coordinate-supply-order
-                :flag-food-safety-concern]]
+                :log-supply-receipt :flag-food-safety-concern]]
       (let [p (adv/infer db {:op op :location-id "location-1" :patch {}})]
         (is (string? (:rationale p))
             (str "op " op " must have a :rationale string"))))))
