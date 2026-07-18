@@ -18,7 +18,8 @@
       inspection sign-off, permit/license suspension, compliance
       enforcement)
 
-  Three HARD checks, ALL permanent, un-overridable by any human approval:
+  Three HARD checks below (+ a fourth additive one, see further down),
+  ALL permanent, un-overridable by any human approval:
 
     1. Location unverified        -- the target location (restaurant
                                      address or mobile food-service unit)
