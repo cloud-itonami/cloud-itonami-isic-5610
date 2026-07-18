@@ -79,7 +79,26 @@
     - A `:coordinate-supply-order` whose drafted `:value` names an
       `:estimated-cost` above `supply-cost-threshold` -- a large-value
       procurement proposal always needs a human sign-off, even when the
-      governor and phase would otherwise allow auto-commit."
+      governor and phase would otherwise allow auto-commit.
+
+  A fourth HARD check, additive, same permanence tier as the three above:
+
+    4. Cross-actor handoff cold-chain incompatibility -- when a
+       `:log-supply-receipt` (or any other) proposal's `:value` carries
+       BOTH a `:handoff` record (the superproject ADR-2800000500 wire
+       shape an upstream cold-chain 3PL such as cloud-itonami-jsic-4721
+       populates on ITS OWN `:log-outbound-shipment` -- same field names
+       as that repo's own ADR-2607177600 `:handoff`, no shared code, no
+       shared store) AND a `:storage-unit-id` naming which of THIS
+       location's own cold-storage units (`cold-storage-requirements`
+       below) the delivery is being placed into, this actor independently
+       verifies the handoff's declared cold-chain-temp-min-c/max-c window
+       overlaps that storage unit's own operating band -- catching a
+       temperature-tier mismatch (e.g. a frozen delivery accepted into a
+       walk-in refrigerator, not a freezer) before it reaches this
+       actor's own store. Optional on both fields, same asymmetric
+       discipline every cross-actor reference in this fleet uses: a
+       proposal missing either field is never held on this basis."
   (:require [clojure.string :as str]
             [restaurantops.store :as store]))
 
@@ -97,7 +116,21 @@
   "The closed proposal-op allowlist -- an op outside this set is a scope
   violation by construction (see `scope-exclusion-violations`)."
   #{:log-service-record :schedule-staffing-operation
-    :coordinate-supply-order :flag-food-safety-concern})
+    :coordinate-supply-order :log-supply-receipt :flag-food-safety-concern})
+
+;; ────── Cross-Actor Handoff Receipt (jsic-4721 -> isic-5610) ──────
+;;
+;; This location's OWN cold-storage-unit temperature reference bands --
+;; independent reference data, no shared code/store with
+;; cloud-itonami-jsic-4721 (see `cold-chain-handoff-violations` below).
+;; Deliberately narrow, domain-illustrative to this restaurant's own
+;; kitchen equipment, not a shared shape with jsic-4721's own
+;; `coldchain.facts/commodity-classes` (a different actor's different
+;; equipment).
+(def cold-storage-requirements
+  "storage-unit-id -> {:storage-temp-min-c .. :storage-temp-max-c ..}."
+  {:walk-in-refrigerator {:storage-temp-min-c 0.0 :storage-temp-max-c 4.0}
+   :freezer {:storage-temp-min-c -25.0 :storage-temp-max-c -15.0}})
 
 (def always-escalate-ops
   "Ops that ALWAYS require human sign-off, clean or not."
@@ -179,6 +212,45 @@
       [{:rule :scope-excluded
         :detail "食品安全認可の確定/アレルゲン除外要件の上書き/厨房設備の直接操作/食品安全当局の判断領域に触れる提案は永久に禁止"}])))
 
+(defn- handoff-window-overlaps-storage-unit?
+  "Positive-sense convenience predicate: does the declared handoff's
+  cold-chain-temp-min-c/max-c window OVERLAP `unit`'s own
+  storage-temp-min-c/max-c band at all? Mirrors cloud-itonami-jsic-4721's
+  own `coldchain.facts/handoff-compatible-with-commodity-class?` overlap
+  reasoning (not a strict subset in either direction -- a storage unit
+  describes a whole equipment's operating band, not one delivery's
+  declared safety margin), but this is an independent implementation
+  with no shared code."
+  [handoff-min-c handoff-max-c unit]
+  (boolean
+   (and (some? unit)
+        (some? handoff-min-c)
+        (some? handoff-max-c)
+        (<= handoff-min-c handoff-max-c)
+        (<= handoff-min-c (:storage-temp-max-c unit))
+        (<= (:storage-temp-min-c unit) handoff-max-c))))
+
+(defn- cold-chain-handoff-violations
+  "HARD, additive: when a proposal's `:value` carries BOTH a `:handoff`
+  record and a `:storage-unit-id`, independently verify the handoff's
+  declared cold-chain-temp-min-c/max-c window overlaps that storage
+  unit's own reference band (`cold-storage-requirements`). Optional on
+  both fields -- a proposal missing either is never held on this basis
+  (same asymmetric discipline as every cross-actor reference check in
+  this fleet, e.g. cloud-itonami-jsic-4721's own `lot-physical-
+  violations`)."
+  [proposal]
+  (let [handoff (get-in proposal [:value :handoff])
+        unit-id (get-in proposal [:value :storage-unit-id])
+        unit (get cold-storage-requirements unit-id)
+        handoff-min (:handoff/cold-chain-temp-min-c handoff)
+        handoff-max (:handoff/cold-chain-temp-max-c handoff)]
+    (when (and (map? handoff) (some? unit) (some? handoff-min) (some? handoff-max)
+               (not (handoff-window-overlaps-storage-unit? handoff-min handoff-max unit)))
+      [{:rule :handoff-cold-chain-window-incompatible-with-storage-unit
+        :detail (str "受領handoffの宣言コールドチェーン窓(" handoff-min "℃~" handoff-max
+                      "℃)が割り当てられた保管ユニット(" (pr-str unit-id) ")の運用帯と重ならない -- 温度帯不整合")}])))
+
 (defn- high-cost-supply-order?
   "A `:coordinate-supply-order` proposal citing an `:estimated-cost` above
   `supply-cost-threshold` -- always needs human sign-off (SOFT escalate,
@@ -197,7 +269,8 @@
         hard (into []
                    (concat (location-unverified-violations {:location-id location-id} store)
                            (effect-not-propose-violations proposal)
-                           (scope-exclusion-violations proposal)))
+                           (scope-exclusion-violations proposal)
+                           (cold-chain-handoff-violations proposal)))
         conf (:confidence proposal 0.0)
         low? (< conf confidence-floor)
         stakes? (boolean (or (always-escalate-ops (:op proposal))

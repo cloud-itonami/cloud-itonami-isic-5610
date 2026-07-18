@@ -3,10 +3,12 @@
   ISIC-5610 restaurants / mobile food service operations-coordination
   actor.
 
-  It drafts exactly four kinds of back-office proposal from a closed
+  It drafts exactly five kinds of back-office proposal from a closed
   allowlist: service-record logging (orders/table-turns/menu-items),
   staffing-operation scheduling (shift/prep), supply-order coordination,
-  and food-safety-concern flagging. CRITICAL: it is a smart-but-untrusted
+  supply-receipt logging (inbound deliveries, e.g. from an upstream
+  cold-chain 3PL such as cloud-itonami-jsic-4721), and food-safety-concern
+  flagging. CRITICAL: it is a smart-but-untrusted
   advisor. It returns a *proposal* (with a rationale + the fields it
   cited), never a committed record and NEVER a direct actuation -- every
   proposal's `:effect` is always `:propose`. Every output is censored
@@ -84,6 +86,28 @@
    :value      (merge {:location-id location-id} patch)
    :confidence 0.90})
 
+(defn- propose-supply-receipt
+  "Draft a supply-receipt log entry -- pure logging of an observed inbound
+  delivery (e.g. from an upstream cold-chain 3PL such as
+  cloud-itonami-jsic-4721), never a food-safety-clearance judgement. May
+  carry an optional cross-actor `:handoff` record (superproject
+  ADR-2800000500 wire shape, same field names as
+  cloud-itonami-jsic-4721's own `:handoff` -- no shared code) plus a
+  `:storage-unit-id` naming which of THIS location's own cold-storage
+  units (`restaurantops.governor/cold-storage-requirements`) the delivery
+  is being placed into -- `restaurantops.governor`'s
+  `cold-chain-handoff-violations` independently verifies the two are
+  temperature-compatible."
+  [_db {:keys [location-id patch]}]
+  {:op         :log-supply-receipt
+   :location-id location-id
+   :summary    (str location-id " の入荷記録を記録: " (pr-str (keys patch)))
+   :rationale  "上流サプライヤー(冷蔵倉庫3PL等)からの入荷観察記録のみ。食品安全認可の判断なし。"
+   :cites      [location-id]
+   :effect     :propose
+   :value      (merge {:location-id location-id} patch)
+   :confidence 0.92})
+
 (defn- propose-food-safety-concern
   "Surface a food-safety concern (allergen mismatch, temperature abuse,
   suspected contamination) for HUMAN triage. This op ALWAYS escalates in
@@ -108,6 +132,7 @@
                    :log-service-record (propose-service-record _db request)
                    :schedule-staffing-operation (propose-staffing-operation _db request)
                    :coordinate-supply-order (propose-supply-order _db request)
+                   :log-supply-receipt (propose-supply-receipt _db request)
                    :flag-food-safety-concern (propose-food-safety-concern _db request)
                    {})]
     ;; Test hook: allow injecting scope-excluded content to exercise the

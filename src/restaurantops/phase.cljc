@@ -3,7 +3,9 @@
   service operations-coordination actor.
 
     Phase 0  read-only            -- no writes, still governor-gated.
-    Phase 1  assisted-logging     -- service-record logging allowed,
+    Phase 1  assisted-logging     -- service-record logging (+ supply-
+                                     receipt logging, same low-risk
+                                     observational-logging tier) allowed,
                                      every write needs human approval.
     Phase 2  assisted-coordination-- adds staffing-operation scheduling
                                      and supply-order proposals, still
@@ -11,8 +13,13 @@
     Phase 3  supervised auto      -- governor-clean, high-confidence
                                      `:log-service-record`/
                                      `:schedule-staffing-operation`/
-                                     `:coordinate-supply-order` may
-                                     auto-commit. `:flag-food-safety-concern`
+                                     `:coordinate-supply-order`/
+                                     `:log-supply-receipt` may
+                                     auto-commit (a HARD cold-chain-
+                                     handoff mismatch on the latter still
+                                     always holds -- the governor's `hard?`
+                                     always wins, see `verdict->disposition`).
+                                     `:flag-food-safety-concern`
                                      NEVER auto-commits, at any phase, and
                                      a high-cost `:coordinate-supply-order`
                                      still escalates even at phase 3 (the
@@ -37,11 +44,11 @@
   "phase -> {:label .. :writes <ops allowed to write> :auto <ops allowed
   to auto-commit when governor-clean>}."
   {0 {:label "read-only"              :writes #{}                                                                :auto #{}}
-   1 {:label "assisted-logging"       :writes #{:log-service-record}                                             :auto #{}}
-   2 {:label "assisted-coordination"  :writes #{:log-service-record :schedule-staffing-operation
+   1 {:label "assisted-logging"       :writes #{:log-service-record :log-supply-receipt}                         :auto #{}}
+   2 {:label "assisted-coordination"  :writes #{:log-service-record :log-supply-receipt :schedule-staffing-operation
                                                :coordinate-supply-order}                                        :auto #{}}
    3 {:label "supervised-auto"        :writes write-ops
-      :auto #{:log-service-record :schedule-staffing-operation :coordinate-supply-order}}})
+      :auto #{:log-service-record :log-supply-receipt :schedule-staffing-operation :coordinate-supply-order}}})
 
 (def default-phase 3)
 
