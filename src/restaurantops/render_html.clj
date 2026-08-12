@@ -378,7 +378,7 @@
 
      "  <section class=\"card\">\n"
      "    <h2>Committed coordination log</h2>\n"
-     "    <p class=\"muted\">The SSoT writes this run produced (<code>store/coordination-log</code>). A record carrying <code>:approved-by</code> passed through a human; the rest auto-committed under the phase gate.</p>\n"
+     "    <p class=\"muted\">The SSoT writes this run produced (<code>store/coordination-log</code>). A record carrying <code>:approved-by</code> passed through a human; the rest auto-committed under the phase gate. This attribution is read back off the stored record itself — <code>MemStore</code>'s <code>commit-record!</code> persists the whole record, so the <code>:approved-by</code> the <code>:request-approval</code> node writes onto <code>:payload</code> does reach the SSoT here — not re-derived from the in-run approval message.</p>\n"
      "    <table>\n"
      "      <thead><tr><th>Op</th><th>Location</th><th>Drafted payload</th><th>Path</th></tr></thead>\n"
      "      <tbody>\n"
@@ -389,7 +389,7 @@
 
      "  <section class=\"card\">\n"
      "    <h2>Audit ledger (this run)</h2>\n"
-     "    <p class=\"muted\">Append-only decision-fact log — every commit and every hold, in the order the actor produced them.</p>\n"
+     "    <p class=\"muted\">Append-only decision-fact log — every commit and every hold, in the order the actor produced them. Read this section's limit honestly: only <code>:committed</code> and <code>:governor-hold</code> facts are written to the store. The graph's <code>:approval-requested</code>/<code>:approval-granted</code> facts stay in the run's in-memory <code>:audit</code> channel and never reach <code>store/ledger</code>, and <code>commit-fact</code> carries no approval field — so a <code>:committed</code> row here does <em>not</em> say whether a human approved it. That attribution exists only on the coordination-log record above.</p>\n"
      "    <table>\n"
      "      <thead><tr><th>Fact</th><th>Op</th><th>Location</th><th>Basis</th><th>Summary</th></tr></thead>\n"
      "      <tbody>\n"
