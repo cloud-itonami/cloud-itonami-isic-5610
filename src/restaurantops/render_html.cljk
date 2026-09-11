@@ -6,7 +6,7 @@
   namespace drives the REAL actor stack (`restaurantops.operation` ->
   `restaurantops.governor` -> `restaurantops.store`) through a scenario
   adapted from this repo's own `restaurantops.sim` demo driver
-  (`clojure -M:dev:run`, run BEFORE this file was written to confirm the
+  (`kbb -M:dev:run`, run BEFORE this file was written to confirm the
   real seeded location ids `location-1`/`location-2`/`location-3` and the
   real request shape `{:op .. :location-id .. :patch {..}}`), extended
   with the two governor checks the sim does NOT cover (the cross-actor
@@ -31,7 +31,7 @@
   bytes cannot depend on hash-map iteration order. Two consecutive runs
   are byte-identical.
 
-  Usage: `clojure -M:dev:render-html [out-file]`
+  Usage: `kbb -M:dev:render-html [out-file]`
   (default `docs/samples/operator-console.html`)."
   (:require [jp-go-dds.skin]
             [kotoba.lang.text :as str]
@@ -319,7 +319,7 @@
 
      "  <section class=\"card\">\n"
      "    <h2>Locations</h2>\n"
-     "    <p class=\"muted\">Build-time snapshot generated from <code>restaurantops.store</code> via <code>restaurantops.render-html</code> (<code>clojure -M:dev:render-html</code>). A location must be independently <code>:registered?</code> AND <code>:verified?</code> (business registration + health permit) in the store before any proposal for it may commit <em>or even escalate</em> — never taken from the proposal's own claim.</p>\n"
+     "    <p class=\"muted\">Build-time snapshot generated from <code>restaurantops.store</code> via <code>restaurantops.render-html</code> (<code>kbb -M:dev:render-html</code>). A location must be independently <code>:registered?</code> AND <code>:verified?</code> (business registration + health permit) in the store before any proposal for it may commit <em>or even escalate</em> — never taken from the proposal's own claim.</p>\n"
      "    <table>\n"
      "      <thead><tr><th>Location</th><th>Name</th><th>Registration</th><th>Health permit</th><th>Last decision</th></tr></thead>\n"
      "      <tbody>\n"
