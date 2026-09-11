@@ -139,14 +139,14 @@ clojure -M:run
 
 ### Test suite
 
-- `test/restaurantops/governor_test.clj` — unit tests of governor hard
+- `test/restaurantops/governor_test.cljk` — unit tests of governor hard
   checks, scope exclusion, and the self-trip regression test
-- `test/restaurantops/advisor_test.clj` — advisor proposal shape and
+- `test/restaurantops/advisor_test.cljk` — advisor proposal shape and
   consistency
-- `test/restaurantops/phase_test.clj` — rollout phase logic
-- `test/restaurantops/governor_contract_test.clj` — full graph
+- `test/restaurantops/phase_test.cljk` — rollout phase logic
+- `test/restaurantops/governor_contract_test.cljk` — full graph
   integration, audit trail
-- `test/restaurantops/store_contract_test.clj` — Store protocol and
+- `test/restaurantops/store_contract_test.cljk` — Store protocol and
   MemStore implementation
 
 ### Modules
