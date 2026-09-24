@@ -1,0 +1,35 @@
+;; What this vertical's robot physically does, declared for
+;; kotoba.robotics.process (kotoba-lang/robotics). `kbb -M:dev:physics` runs it.
+;;
+;; README "Robotics premise": for restaurants and mobile food service
+;; (ISIC 5610) robots do food-prep, plating and in-restaurant / last-mile
+;; delivery, gated by the Food Service Governor (food-temperature control is
+;; :safety-critical). Physical work modelled here: the prep robot blast-
+;; chilling a hotel pan of cooked stew, and a sidewalk delivery robot
+;; climbing a hill with an order.
+;;
+;; Every number without a cited source is marked `estimate` in its :basis.
+;; Replacing an estimate with a sourced value is this bot's growth work.
+{:physics/schema "itonami.physical-ai.spec.v1"
+ :repo "cloud-itonami/cloud-itonami-isic-5610"
+ :cases
+ [{:id :blast-chill-hotel-pan
+   :kind :thermal
+   :procedure "prep robot loads a hotel pan of cooked stew at 57 C into a 2 C blast chiller; cooled top and bottom, so half the depth is modelled with an adiabatic mid-plane"
+   :params {:conductivity-w-mk 0.5 :density-kg-m3 1050.0 :specific-heat-j-kgk 3600.0
+            :t0-c 57.0 :t-hot-c 2.0 :h-front-w-m2k 20.0 :h-back-w-m2k 0.0
+            :threshold-c 21.0 :threshold-direction :falling :duration-s 21600.0 :nodes 11}
+   :sweep {:param :thickness-m :values [0.01 0.02 0.03 0.04 0.05]}
+   :quantity :time-to-threshold-s
+   :limit {:max 7200.0 :basis "FDA Food Code 3-501.14(A)(1): cooked food cooled from 57 C (135 F) to 21 C (70 F) within 2 hours"}
+   :boundary {:lo 0.005 :hi 0.08}}
+  {:id :sidewalk-delivery-hill
+   :kind :transport
+   :procedure "sidewalk delivery robot carries an order 400 m to the customer, the route including a sustained hill"
+   :params {:mass-kg 25.0 :payload-kg 10.0 :distance-m 400.0 :v-max-mps 1.6 :a-max-mps2 0.5
+            :brake-decel-mps2 1.0 :drive-force-n 60.0 :crr 0.03
+            :cog-height-m 0.30 :support-half-length-m 0.30 :max-time-s 3600.0}
+   :sweep {:param :slope-deg :values [0.0 3.0 6.0 8.0 10.0]}
+   :quantity :cycle-time-s
+   :limit {:max 300.0 :basis "estimate: the order must arrive within 5 minutes of leaving the kitchen door to stay at serving temperature"}
+   :boundary {:lo 0.0 :hi 12.0}}]}
