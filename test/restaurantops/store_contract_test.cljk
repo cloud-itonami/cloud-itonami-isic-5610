@@ -1,6 +1,6 @@
 (ns restaurantops.store-contract-test
   "Contract tests for `restaurantops.store/Store` protocol."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [restaurantops.store :as store]))
 
 (deftest mem-store-location-lookup
