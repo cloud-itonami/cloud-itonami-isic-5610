@@ -1,6 +1,6 @@
 (ns restaurantops.advisor-test
   "Unit tests of `restaurantops.advisor` proposal generation."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [restaurantops.advisor :as adv]
             [restaurantops.store :as store]))
 
